@@ -6,7 +6,7 @@
 import SimpleXMLRPCServer
 #############################################
 ## this probably should be configurable in some way
-host = "localhost"
+host = "10.0.0.4"
 port = 8080
 
 #################################################################
@@ -87,7 +87,7 @@ def processquestion(question):
             if answer.has_key('answer'):
                 ans['answer'] = get_r_output(R, answer['answer'])
             if answer.has_key('tolerance'):
-                ans['tolernace'] = get_r_output(R, answer['tolerance'])
+                ans['tolerance'] = get_r_output(R, answer['tolerance'])
             if answer.has_key('ansid'):
                 ans['ansid'] = answer['ansid']
             answers_out.append(ans)
