@@ -29,6 +29,7 @@ def close_R(R): ## procedure to clean up and close the given R connection
     return None
 
 def get_r_output(R, rcode):
+    rcode = rcode.replace("\r\n", "\n")
     output = ""
     if rcode.strip() != '':
         output = str(R(rcode))
