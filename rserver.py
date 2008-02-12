@@ -6,7 +6,7 @@
 import SimpleXMLRPCServer
 #############################################
 ## this probably should be configurable in some way
-host = "10.0.0.4"
+host = "leaf.stat.umn.edu"
 port = 8080
 
 #################################################################
