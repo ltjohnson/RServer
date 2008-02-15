@@ -6,14 +6,33 @@
 import SimpleXMLRPCServer
 #############################################
 ## this probably should be configurable in some way
-host = "leaf.stat.umn.edu"
+host = "localhost"
 port = 8080
 
 #################################################################
 ## logging faclities
 def log(msg):
-    #print msg
-    return None
+	logfile = open("/home/leif/log/rserver.log", "a")
+	logfile.write(msg)
+	logfile.close()
+	return None
+def log_question(question):
+	log_str = ""
+	if question.has_key('variables'):
+		log_str = log_str + "variables[" + question['variables'].replace("\n", "\\n") + "]\n"
+	if question.has_key('questiontext'):
+		log_str = log_str + "questiontext[" + question['questiontext'].replace("\n", "\\n") + "]\n"
+	if question.has_key('answers'):
+		answers = question['answers']
+		for ans in answers:
+			if ans.has_key('ansid'):
+				log_str = log_str + "ansid[" + str(ans['ansid']) + "]\n"
+			if ans.has_key('answer'):
+				log_str = log_str + "answer[" + ans['answer'].replace("\n", "\\n") + "]\n"
+			if ans.has_key('tolerance'):
+				log_str = log_str + "tolerance[" + ans['tolerance'].replace("\n", "\\n") + "]\n"
+	if log_str != "":
+		log(log_str)
 #################################################################
 ## code to interface with R
 def junk_output(s):
@@ -70,15 +89,15 @@ def process_qtext(R, qtext):
 
     
 def processquestion(question):
+    log("received question\n")
+    log_question(question)
     R = get_clean_R()
     ret = {}
     ## process variables statement, don't capture output
     if question.has_key('variables'):
-        log("variables: " + question['variables'])
         ret['variables'] = get_r_output(R, question['variables'])
     ## process question text
     if question.has_key('questiontext'):
-        log("questiontext: " + question['questiontext'])
         ret['questiontext'] = process_qtext(R, question['questiontext'])
     ## process answers
     if question.has_key('answers'):
@@ -94,7 +113,9 @@ def processquestion(question):
             answers_out.append(ans)
         ret['answers'] = answers_out
         ret['numanswers'] = len(answers_out)
-    close_R(R)
+    log("processed question\n") 
+    log_question(ret) 
+    close_R(R) 
     return ret
         
 #################################################################
