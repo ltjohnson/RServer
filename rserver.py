@@ -92,7 +92,7 @@ def processquestion(question):
     log("received question\n")
     log_question(question)
     R = get_clean_R()
-    ret = {}
+    ret = question
     ## process variables statement, don't capture output
     if question.has_key('variables'):
         ret['variables'] = get_r_output(R, question['variables'])
