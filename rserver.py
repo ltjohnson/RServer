@@ -4,39 +4,42 @@
 
 
 import SimpleXMLRPCServer
+import base64, time, os
 #############################################
 ## this probably should be configurable in some way
 host = "localhost"
 port = 8080
 
+tmp_dir = "/home/leif/rserver_tmp"
+
 #################################################################
 ## logging faclities
 def log(msg):
-	logfile = open("/home/leif/log/rserver.log", "a")
-	logfile.write(msg)
-	logfile.close()
-	return None
+    logfile = open("/home/leif/log/rserver.log", "a")
+    logfile.write(msg)
+    logfile.close()
+    return None
 def log_question(question):
-	log_str = ""
-	if question.has_key('variables'):
-		log_str = log_str + "variables[" + question['variables'].replace("\n", "\\n") + "]\n"
-	if question.has_key('questiontext'):
-		log_str = log_str + "questiontext[" + question['questiontext'].replace("\n", "\\n") + "]\n"
-	if question.has_key('answers'):
-		answers = question['answers']
-		for ans in answers:
-			if ans.has_key('ansid'):
-				log_str = log_str + "ansid[" + str(ans['ansid']) + "]\n"
-			if ans.has_key('answer'):
-				log_str = log_str + "answer[" + ans['answer'].replace("\n", "\\n") + "]\n"
-			if ans.has_key('tolerance'):
-				log_str = log_str + "tolerance[" + ans['tolerance'].replace("\n", "\\n") + "]\n"
-	if log_str != "":
-		log(log_str)
+    log_str = ""
+    if question.has_key('variables'):
+	    log_str = log_str + "variables[" + question['variables'].replace("\n", "\\n") + "]\n"
+    if question.has_key('questiontext'):
+	log_str = log_str + "questiontext[" + question['questiontext'].replace("\n", "\\n") + "]\n"
+    if question.has_key('answers'):
+	answers = question['answers']
+	for ans in answers:
+	    if ans.has_key('ansid'):
+		log_str = log_str + "ansid[" + str(ans['ansid']) + "]\n"
+	    if ans.has_key('answer'):
+	        log_str = log_str + "answer[" + ans['answer'].replace("\n", "\\n") + "]\n"
+	    if ans.has_key('tolerance'):
+	        log_str = log_str + "tolerance[" + ans['tolerance'].replace("\n", "\\n") + "]\n"
+    if log_str != "":
+        log(log_str)
 #################################################################
 ## code to interface with R
 def junk_output(s):
-	return
+    return
     
 def get_clean_R():
     from rpy import r, set_rpy_output
@@ -53,6 +56,26 @@ def get_r_output(R, rcode):
     if rcode.strip() != '':
         output = str(R(rcode))
     return output
+#################################################################
+def get_image(R, imgcode):
+    ## first get a unique file name for R
+    imgfile = tmp_dir + "/" + "rimg" + str(int(time.time()))
+    #R("png(\"" + imgfile +"\")")
+    # png images don't work without x running, it might be worth the trouble
+    # to get it attached to an x session if available
+    R("postscript(\""+imgfile+".ps\")")
+    R(imgcode)
+    R("dev.off()")
+    ## now that we have the image file, we will binary encode it and return it
+    os.system("convert "+imgfile+".ps -rotate 90 -resize 640x480 "+ imgfile +".png")
+    filein = open(imgfile+".png", "r")
+    filedata = filein.read()
+    filein.close()
+    dataout = base64.b64encode(filedata)
+    ## remove the file and return the encoded data
+    os.remove(imgfile+".png")
+    return dataout
+    
 #################################################################
 def process_qtext(R, qtext):
     textout = ""
@@ -96,6 +119,10 @@ def processquestion(question):
     ## process variables statement, don't capture output
     if question.has_key('variables'):
         ret['variables'] = get_r_output(R, question['variables'])
+    ## process image code if it exists, and capture the base 64 encoded
+    ## image output
+    if question.has_key('imagecode') and question['imagecode'] != "":
+	ret['image'] = get_image(R, question['imagecode']);
     ## process question text
     if question.has_key('questiontext'):
         ret['questiontext'] = process_qtext(R, question['questiontext'])
