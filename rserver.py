@@ -11,7 +11,7 @@ host = "localhost"
 port = 8080
 
 tmp_dir = "/home/leif/rserver_tmp"
-
+R_clean_workspace = tmp_dir + "/" + "work" + str(int(time.time())%1000) + ".rda"
 #################################################################
 ## logging faclities
 def log(msg):
@@ -25,6 +25,8 @@ def log_question(question):
 	    log_str = log_str + "variables[" + question['variables'].replace("\n", "\\n") + "]\n"
     if question.has_key('questiontext'):
 	log_str = log_str + "questiontext[" + question['questiontext'].replace("\n", "\\n") + "]\n"
+    if question.has_key('remotegrade'):
+        log_str = log_str + "remotegrade="+str(question['remotegrade'])+"\n"
     if question.has_key('answers'):
 	answers = question['answers']
 	for ans in answers:
@@ -40,10 +42,10 @@ def log_question(question):
 ## code to interface with R
 def junk_output(s):
     return
-    
+
 def get_clean_R():
-    from rpy import r, set_rpy_output
-    set_rpy_output(junk_output)
+    r("rm(list=ls(all=TRUE))")
+    r("load(\""+R_clean_workspace+"\")")
     return r
 
 def close_R(R): ## procedure to clean up and close the given R connection
@@ -57,6 +59,12 @@ def get_r_output(R, rcode):
         output = str(R(rcode))
     return output
 #################################################################
+def get_base64_file(filename):
+    filein = open(filename, "r")
+    filedata = filein.read()
+    filein.close()
+    return base64.b64encode(filedata)
+
 def get_image(R, imgcode):
     ## first get a unique file name for R
     imgfile = tmp_dir + "/" + "rimg" + str(int(time.time()))
@@ -68,14 +76,19 @@ def get_image(R, imgcode):
     R("dev.off()")
     ## now that we have the image file, we will binary encode it and return it
     os.system("convert "+imgfile+".ps -rotate 90 -resize 640x480 "+ imgfile +".png")
-    filein = open(imgfile+".png", "r")
-    filedata = filein.read()
-    filein.close()
-    dataout = base64.b64encode(filedata)
+    dataout = get_base64_file(imgfile+".png")
     ## remove the file and return the encoded data
     os.remove(imgfile+".png")
+    os.remove(imgfile+".ps")
     return dataout
-    
+
+def get_R_workspace(R):
+    ## tmpfile name
+    workspace_tmp = tmp_dir + "/" + "rwksp" + str(int(time.time())) + ".rda"
+    R("save.image(file=\"" + workspace_tmp + "\")")
+    dataout = get_base64_file(workspace_tmp)
+    os.remove(workspace_tmp)
+    return dataout
 #################################################################
 def process_qtext(R, qtext):
     textout = ""
@@ -126,8 +139,15 @@ def processquestion(question):
     ## process question text
     if question.has_key('questiontext'):
         ret['questiontext'] = process_qtext(R, question['questiontext'])
-    ## process answers
-    if question.has_key('answers'):
+    ## process answers, but only if we aren't remote grading.
+    ## if we are remote grading we send back a copy of the workspace so
+    ## they can send it back to us when it comes time to grade
+    remote_grade = 0
+    if question.has_key('remotegrade'):
+        remote_grade = int(question['remotegrade'])
+    if remote_grade == 1:
+        ret['workspace'] = get_R_workspace(R)
+    elif question.has_key('answers'):
         answers_out = []
         for answer in question['answers']:
             ans = {}
@@ -146,7 +166,13 @@ def processquestion(question):
     return ret
         
 #################################################################
-## star the rpc server
+## init R before we start the server
+from rpy import r, set_rpy_output
+set_rpy_output(junk_output)
+# save a 'clean' R workspace that we can return to
+r("save.image(file=\""+R_clean_workspace+"\")")
+
+## start the rpc server
 server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
 server.register_function(processquestion)
 server.register_introspection_functions()
