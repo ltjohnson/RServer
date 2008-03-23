@@ -58,6 +58,16 @@ def get_r_output(R, rcode):
     if rcode.strip() != '':
         output = str(R(rcode))
     return output
+
+def load_encoded_workspace(R, workspace):
+    ## tmp file name
+    tmp_file = tmp_dir + "/" + "rwork" + str(int(time.time())) + ".Rdata"
+    fileout = open(tmp_file, "w")
+    fileout.write(base64.b64decode(workspace))
+    fileout.close()
+    R('load("' + tmp_file + '")')
+    os.remove(tmp_file)
+    return R
 #################################################################
 def get_base64_file(filename):
     filein = open(filename, "r")
@@ -123,9 +133,10 @@ def process_qtext(R, qtext):
         textout = textout + get_r_output(R, rcode)
     return textout
 
-    
+###########################################################################
+## The functions that can be called by xmlrpc
 def processquestion(question):
-    log("received question\n")
+    log("===============================process question\n")
     log_question(question)
     R = get_clean_R()
     ret = question
@@ -164,7 +175,42 @@ def processquestion(question):
     log_question(ret) 
     close_R(R) 
     return ret
-        
+
+def status():
+    R = get_clean_R()
+    rv = r("version")
+    close_R(R)
+    return rv
+
+def grade(question):
+    log("==================================grade question\n")
+    R = get_clean_R()
+    if question.has_key("workspace"):
+        R = load_encoded_workspace(R, question['workspace'])
+        log("received workspace\n")
+        log("ls: " + get_r_output(R, "ls()") + "\n")
+    ## now that we have the loaded workspace, calculate the student answer
+    ## and store it in the R variable 'studentans'
+    if question.has_key("studentans"):
+        R("studentans <- " + question['studentans'])
+        log("studentans: " + get_r_output(R, "studentans") + "\n")
+    ## iterate through answers, find everything that matches and return the list
+    ret = []
+    if question.has_key("answers"):
+        for answer in question['answers']:
+            if answer.has_key('answer'):
+                log("checking answer: " + answer['answer'] + "\n")
+                ans_result = R(str(answer['answer']))
+                log("answer result: " + str(ans_result) + "\n")
+                if ans_result:
+                    if answer.has_key('ansid'):
+                        log("answer correct, ansid: " + str(answer['ansid']) + "\n")
+                        ret.append(int(answer['ansid']))
+    if len(ret) == 0:
+        ret.append(0)
+    close_R(R)
+    return ret
+
 #################################################################
 ## init R before we start the server
 from rpy import r, set_rpy_output
@@ -174,6 +220,9 @@ r("save.image(file=\""+R_clean_workspace+"\")")
 
 ## start the rpc server
 server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
+# register functions that can be called via xml-rpc
 server.register_function(processquestion)
+server.register_function(status)
+server.register_function(grade)
 server.register_introspection_functions()
 server.serve_forever()
