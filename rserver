@@ -1,0 +1,129 @@
+#!/bin/sh
+# start/stop/check/restart script for rserver
+############################################################################
+#
+# Script variables 
+#
+############################################################################
+rserver_home=/home/ruser
+pidFile=$rserver_home/run/rserver.pid
+rserver_bin=$rserver_home/bin/rserver.py 
+rserver_out=$rserver_home/log/rserver.out
+############################################################################
+function check_running {
+	running=1
+	if [ -f $pidFile ] 
+	then 
+		ps axc | grep `cat $pidFile` > /dev/null 2>&1
+		if [ $? -eq 0 ]
+		then 
+			return 0
+		else 
+			rm $pidFile
+		fi
+	fi
+	## pidfile came up empty, but maybe it's running without being in
+	## the pidfile
+	ps axc | grep -v grep | grep rserver.py > /dev/null 2>&1
+	if [ $? -eq 0 ] 
+	then
+		return 0
+	fi
+	## didn't find the process, return 1
+	return 1
+}
+############################################################################
+function start_rserver {
+	check_running 
+	if [ $? -eq 0 ] 
+	then
+		echo " rserver allready running "
+		return 1
+	fi
+	nohup $rserver_bin > $rserver_out 2>&1 &
+	echo "$!" > $pidFile
+	echo " rserver started"
+	return 0
+}
+############################################################################
+function stop_rserver {
+	check_running
+	if [ $? -eq 1 ]
+	then
+		echo " rserver not running "
+		return 1
+	fi
+	pid=`ps axc | grep -v grep | grep rserver.py | cut -d' ' -f1`
+	kill -9 $pid
+	if [ -f $pidFile ]
+	then 
+		rm $pidFile
+	fi	
+	echo " rserver halted "
+	return 0
+}
+############################################################################
+case "$1" in
+	stop)
+		echo ""
+		echo " Stopping rserver "
+		echo ""
+		stop_rserver
+		exit $?
+	;;
+	start)
+		echo ""
+		echo " Starting rserver "
+		echo ""
+		start_rserver
+		exit $?
+	;;
+	status)
+		check_running
+		if [ $? -eq 0 ] 
+		then
+			echo " rserver running "
+		else
+			echo " rserver not running "
+		fi
+		exit 0
+	;;
+	restart)
+		echo ""
+		echo " Restarting rserver ..."
+		$0 stop
+		$0 start
+		echo ""
+		exit 0
+	;;
+	check)
+		check_running
+		if [ $? -eq 0 ]
+		then
+			exit 0
+		fi
+		## try to restart rserver, there might be a smarter way to do this
+		## i.e. whine if it fails, have a fail count (give up after so 
+		## many tries) etc.
+		$0 start
+		exit $?
+	;;
+	--help)
+		echo "-------------------------------------------"
+		echo " Usage: $0 {start|stop|status|check|restart}"
+		echo " "
+		echo "  --help    This help page"
+		echo "  start     Start rserver"
+		echo "  stop      Stop rserver"
+		echo "  status    Status of rserver"
+		echo "  check     Check if rserver is running, issue restart if it not"
+		echo "  restart   Restart rserver"
+		echo "-------------------------------------------"
+		exit 1
+		;;
+###########################################################################
+	*)
+	$0 --help
+	exit 1
+esac
+exit 0
