@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 ## it's important to keep this as /usr/bin/env python for cross platform
 ## compatibility
 
@@ -7,15 +7,15 @@ import SimpleXMLRPCServer
 import base64, time, os
 #############################################
 ## this probably should be configurable in some way
-host = "localhost"
-port = 8080
+host = "rweb.stat.umn.edu"
+port = 3030
 
-tmp_dir = "/home/leif/rserver_tmp"
+tmp_dir = "/home/ruser/rserver_tmp"
 R_clean_workspace = tmp_dir + "/" + "work" + str(int(time.time())%1000) + ".rda"
 #################################################################
 ## logging faclities
 def log(msg):
-    logfile = open("/home/leif/log/rserver.log", "a")
+    logfile = open("/home/ruser/log/rserver.log", "a")
     logfile.write(msg)
     logfile.close()
     return None
@@ -191,8 +191,10 @@ def grade(question):
         log("ls: " + get_r_output(R, "ls()") + "\n")
     ## now that we have the loaded workspace, calculate the student answer
     ## and store it in the R variable 'studentans'
+    # load grade library
+    R('library(grade, lib.loc="/home/ruser/R-library")')
     if question.has_key("studentans"):
-        R("studentans <- " + question['studentans'])
+        R("studentans <- \"" + str(question['studentans']) + "\"")
         log("studentans: " + get_r_output(R, "studentans") + "\n")
     ## iterate through answers, find everything that matches and return the list
     ret = []

@@ -53,7 +53,7 @@ function stop_rserver {
 		echo " rserver not running "
 		return 1
 	fi
-	pid=`ps axc | grep -v grep | grep rserver.py | cut -d' ' -f1`
+	pid=`ps axc | grep -v grep | grep rserver.py | sed -e 's/^ //g' | cut -d' ' -f1`
 	kill -9 $pid
 	if [ -f $pidFile ]
 	then 
