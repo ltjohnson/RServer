@@ -115,12 +115,16 @@ def convert_question_toxml(question):
 def process_command_line(args):
 	questions    = []
 	question     = {}
+	question['answers'] = []
 	server       = ""
 	xml_file     = ""
 	
 	xml_found    = False
 	cl_found     = False
 	idx = 0
+	ans_idx = 0
+	tol_idx = 0
+	aid_idx = 0
 	while(idx < len(args)):
 		option = args[idx]
 		value  = args[idx+1]
