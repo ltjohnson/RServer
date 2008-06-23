@@ -2,23 +2,37 @@
 ## it's important to keep this as /usr/bin/env python for cross platform
 ## compatibility
 
+################################################################################
+# all of these options are defaults and configurable in the config file
+tmpdir   = "/home/ruser/rserver_tmp"
+logfile  = "/home/ruser/log/rserver.log"
+loglevel = 1
+
+R_clean_workspace = tmp_dir + "/" + "work" + str(int(time.time())%1000) + ".rda"
+
+host = "rweb.stat.umn.edu"
+port = 3030
+
+clean_R = ["rm(list=ls(all=TRUE))", "load(\""+R_clean_workspace+"\")"]
+close_R = ["rm(list=ls(all=TRUE))"]
+grade_R = ['library(grade, lib.loc="/home/ruser/R-library")']
+################################################################################
+
 
 import SimpleXMLRPCServer
 import base64, time, os
 #############################################
 ## this probably should be configurable in some way
-host = "rweb.stat.umn.edu"
-port = 3030
 
-tmp_dir = "/home/ruser/rserver_tmp"
-R_clean_workspace = tmp_dir + "/" + "work" + str(int(time.time())%1000) + ".rda"
 #################################################################
 ## logging faclities
-def log(msg):
-    logfile = open("/home/ruser/log/rserver.log", "a")
-    logfile.write(msg)
-    logfile.close()
+def log(msg, level=1)]
+	if level > loglevel: return None
+    logf = open(logfile, "a")
+    logf.write(msg)
+    logf.close()
     return None
+
 def log_question(question):
     log_str = ""
     if question.has_key('variables'):
@@ -37,19 +51,18 @@ def log_question(question):
 	    if ans.has_key('tolerance'):
 	        log_str = log_str + "tolerance[" + ans['tolerance'].replace("\n", "\\n") + "]\n"
     if log_str != "":
-        log(log_str)
+        log(log_str, 2)
 #################################################################
 ## code to interface with R
 def junk_output(s):
     return
 
 def get_clean_R():
-    r("rm(list=ls(all=TRUE))")
-    r("load(\""+R_clean_workspace+"\")")
+    for s in clean_r: r(s)
     return r
 
-def close_R(R): ## procedure to clean up and close the given R connection
-    R("rm(list=ls(all=TRUE))")
+def close_R_con(R): ## procedure to clean up and close the given R connection
+    for s in close_R: R(s)
     return None
 
 def get_r_output(R, rcode):
@@ -191,8 +204,7 @@ def grade(question):
         log("ls: " + get_r_output(R, "ls()") + "\n")
     ## now that we have the loaded workspace, calculate the student answer
     ## and store it in the R variable 'studentans'
-    # load grade library
-    R('library(grade, lib.loc="/home/ruser/R-library")')
+	for s in grade_R: R(s)
     if question.has_key("studentans"):
         R("studentans <- \"" + str(question['studentans']) + "\"")
         log("studentans: " + get_r_output(R, "studentans") + "\n")
