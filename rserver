@@ -7,8 +7,9 @@
 ############################################################################
 rserver_home=/home/ruser
 pidFile=$rserver_home/run/rserver.pid
-rserver_bin=$rserver_home/bin/rserver.py 
-rserver_out=$rserver_home/log/rserver.out
+rserver_bin="$rserver_home/bin/rserver.py --config $rserver_home/etc/rserver.config"
+rserver_out=/dev/null
+#rserver_out=$rserver_home/log/rserver.out
 ############################################################################
 function check_running {
 	running=1

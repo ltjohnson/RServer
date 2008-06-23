@@ -3,7 +3,7 @@
 ## compatibility
 
 import SimpleXMLRPCServer
-import base64, time, os
+import base64, time, os, sys
 
 ################################################################################
 # all of these options are defaults and configurable in the config file
@@ -13,13 +13,15 @@ loglevel = 1
 
 R_clean_workspace = tmpdir + "/" + "work" + str(int(time.time())%1000) + ".rda"
 
-host = "rweb.stat.umn.edu"
-port = 3030
+host = "localhost"
+port = 8080
 
 clean_R = ["rm(list=ls(all=TRUE))", "load(\""+R_clean_workspace+"\")"]
 close_R = ["rm(list=ls(all=TRUE))"]
 grade_R = ['library(grade, lib.loc="/home/ruser/R-library")']
 ################################################################################
+start_time = time.time()
+requests   = 0
 
 ## logging faclities
 def log(msg, level=2):
@@ -145,6 +147,8 @@ def process_qtext(R, qtext):
 ###########################################################################
 ## The functions that can be called by xmlrpc
 def processquestion(question):
+    global requests
+    requests = requests + 1
     log("===============================process question\n")
     log_question(question)
     R = get_clean_R()
@@ -189,9 +193,16 @@ def status():
     R = get_clean_R()
     rv = r("version")
     close_R_con(R)
+    rv['requests'] = requests
+    cur_time = time.time()
+    uptime = int(cur_time - start_time)
+    rv['uptime'] = '%(hrs)03d:%(min)02d:%(sec)02d' % \
+        {'hrs': int(uptime/3600), 'min' : int(uptime/60), 'sec': uptime % 60}
     return rv
 
 def grade(question):
+    global requests
+    requests = requests + 1
     log("==================================grade question\n")
     R = get_clean_R()
     if question.has_key("workspace"):
@@ -222,17 +233,88 @@ def grade(question):
     return ret
 
 #################################################################
+def read_cmdline():
+	global tmpdir, logfile, loglevel, host, port, clean_R, close_R, grade_R
+	config_file = ""
+	opts = sys.argv[1:]
+	config_idx = 0
+	while config_idx < len(opts) and opts[config_idx] != "--config":
+		config_idx = config_idx + 1
+	if config_idx >= (len(opts)-1): 
+		return None
+	config_file = opts[config_idx + 1]
+	cfile = open(config_file, "r")
+	cfile_lines = cfile.readlines()
+	cfile.close()
+	####################################
+	# these options are to track if such and such shows up in the config file,
+	# if it is the first time for an item, we erase the array
+	clean_f = False
+	grade_f = False
+	close_f = False
+	for l in cfile_lines:
+		eq = l.find("=")
+		p1 = l
+		p2 = ""
+		if eq != -1:
+			p1 = l[:eq]
+			p2 = l[(eq+1):]
+		def fix_string(s):
+			sharp = s.find("#")
+			if sharp != -1:
+				s = s[:sharp]
+			return s.lstrip().rstrip()
+		p1 = fix_string(p1)
+		p2 = fix_string(p2)
+
+		if p1.startswith("tmpdir"):
+			if p2 != "": tmpdir = p2
+		elif p1.startswith("logfile"): 
+			if p2 != "": logfile = p2
+		elif p1.startswith("loglevel"): 
+			if p2 != "": loglevel = int(p2)
+		elif p1.startswith("host"): 
+			if p2 != "": host = p2
+		elif p1.startswith("port"): 
+			if p2 != "": port = int(p2)
+		elif p1.startswith("clean"): 
+			if p2 != "":
+				if clean_f == False:
+					clean_R = []
+					clean_f = True
+				clean_R.append(p2)
+		elif p1.startswith("close"): 
+			if p2 != "":
+				if close_f == False:
+					close_R = []
+					close_f = True
+				close_R.append(p2)
+		elif p1.startswith("grade"): 
+			if p2 != "":
+				if grade_f == False:
+					grade_R = []
+					grade_f = True
+				grade_R.append(p2)
+#################################################################
 ## init R before we start the server
 from rpy import r, set_rpy_output
 set_rpy_output(junk_output)
-# save a 'clean' R workspace that we can return to
-r("save.image(file=\""+R_clean_workspace+"\")")
 
-## start the rpc server
-server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
-# register functions that can be called via xml-rpc
-server.register_function(processquestion)
-server.register_function(status)
-server.register_function(grade)
-server.register_introspection_functions()
-server.serve_forever()
+if __name__ == "__main__":
+	
+	if len(sys.argv) > 1:
+		print "Reading commandline"
+		read_cmdline()
+		# something should be done here to make sure the clean workspace stays okay
+
+	# save a 'clean' R workspace that we can return to
+	r("save.image(file=\""+R_clean_workspace+"\")")
+
+	## start the rpc server
+	server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
+	# register functions that can be called via xml-rpc
+	server.register_function(processquestion)
+	server.register_function(status)
+	server.register_function(grade)
+	server.register_introspection_functions()
+	server.serve_forever()
