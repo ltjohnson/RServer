@@ -2,13 +2,16 @@
 ## it's important to keep this as /usr/bin/env python for cross platform
 ## compatibility
 
+import SimpleXMLRPCServer
+import base64, time, os
+
 ################################################################################
 # all of these options are defaults and configurable in the config file
 tmpdir   = "/home/ruser/rserver_tmp"
 logfile  = "/home/ruser/log/rserver.log"
 loglevel = 1
 
-R_clean_workspace = tmp_dir + "/" + "work" + str(int(time.time())%1000) + ".rda"
+R_clean_workspace = tmpdir + "/" + "work" + str(int(time.time())%1000) + ".rda"
 
 host = "rweb.stat.umn.edu"
 port = 3030
@@ -18,16 +21,9 @@ close_R = ["rm(list=ls(all=TRUE))"]
 grade_R = ['library(grade, lib.loc="/home/ruser/R-library")']
 ################################################################################
 
-
-import SimpleXMLRPCServer
-import base64, time, os
-#############################################
-## this probably should be configurable in some way
-
-#################################################################
 ## logging faclities
-def log(msg, level=1)]
-	if level > loglevel: return None
+def log(msg, level=2):
+    if level > loglevel: return None
     logf = open(logfile, "a")
     logf.write(msg)
     logf.close()
@@ -58,7 +54,7 @@ def junk_output(s):
     return
 
 def get_clean_R():
-    for s in clean_r: r(s)
+    for s in clean_R: r(s)
     return r
 
 def close_R_con(R): ## procedure to clean up and close the given R connection
@@ -74,7 +70,7 @@ def get_r_output(R, rcode):
 
 def load_encoded_workspace(R, workspace):
     ## tmp file name
-    tmp_file = tmp_dir + "/" + "rwork" + str(int(time.time())) + ".Rdata"
+    tmp_file = tmpdir + "/" + "rwork" + str(int(time.time())) + ".Rdata"
     fileout = open(tmp_file, "w")
     fileout.write(base64.b64decode(workspace))
     fileout.close()
@@ -90,7 +86,7 @@ def get_base64_file(filename):
 
 def get_image(R, imgcode):
     ## first get a unique file name for R
-    imgfile = tmp_dir + "/" + "rimg" + str(int(time.time()))
+    imgfile = tmpdir + "/" + "rimg" + str(int(time.time()))
     #R("png(\"" + imgfile +"\")")
     # png images don't work without x running, it might be worth the trouble
     # to get it attached to an x session if available
@@ -107,7 +103,7 @@ def get_image(R, imgcode):
 
 def get_R_workspace(R):
     ## tmpfile name
-    workspace_tmp = tmp_dir + "/" + "rwksp" + str(int(time.time())) + ".rda"
+    workspace_tmp = tmpdir + "/" + "rwksp" + str(int(time.time())) + ".rda"
     R("save.image(file=\"" + workspace_tmp + "\")")
     dataout = get_base64_file(workspace_tmp)
     os.remove(workspace_tmp)
@@ -186,13 +182,13 @@ def processquestion(question):
         ret['numanswers'] = len(answers_out)
     log("processed question\n") 
     log_question(ret) 
-    close_R(R) 
+    close_R_con(R) 
     return ret
 
 def status():
     R = get_clean_R()
     rv = r("version")
-    close_R(R)
+    close_R_con(R)
     return rv
 
 def grade(question):
@@ -222,7 +218,7 @@ def grade(question):
                         ret.append(int(answer['ansid']))
     if len(ret) == 0:
         ret.append(0)
-    close_R(R)
+    close_R_con(R)
     return ret
 
 #################################################################
