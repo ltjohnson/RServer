@@ -87,20 +87,19 @@ def get_base64_file(filename):
     return base64.b64encode(filedata)
 
 def get_image(R, imgcode):
+    ## as of R 2.7, png images work by default, so that's what we use here.
+    ## it makes life much simpler
     ## first get a unique file name for R
     imgfile = tmpdir + "/" + "rimg" + str(int(time.time()))
-    #R("png(\"" + imgfile +"\")")
-    # png images don't work without x running, it might be worth the trouble
-    # to get it attached to an x session if available
-    R("postscript(\""+imgfile+".ps\")")
+
+    ## generate the image file by running the image code
+    R("png(\"" + imgfile +".png\")")
     R(imgcode)
     R("dev.off()")
-    ## now that we have the image file, we will binary encode it and return it
-    os.system("convert "+imgfile+".ps -rotate 90 -resize 640x480 "+ imgfile +".png")
+
+    ## encode the data and delete the temporary file
     dataout = get_base64_file(imgfile+".png")
-    ## remove the file and return the encoded data
     os.remove(imgfile+".png")
-    os.remove(imgfile+".ps")
     return dataout
 
 def get_R_workspace(R):
