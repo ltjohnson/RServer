@@ -11,14 +11,19 @@ tmpdir   = "/home/ruser/rserver_tmp"
 logfile  = "/home/ruser/log/rserver.log"
 loglevel = 1
 
-R_clean_workspace = tmpdir + "/" + "work" + str(int(time.time())%1000) + ".rda"
+workspacetime = str(int(time.time())%1000)
+def R_clean_workspace(): return tmpdir + "/" + workspacetime + ".rda"
 
 host = "localhost"
 port = 8080
 
-clean_R = ["rm(list=ls(all=TRUE))", "load(\""+R_clean_workspace+"\")"]
-close_R = ["rm(list=ls(all=TRUE))"]
-grade_R = ['library(grade, lib.loc="/home/ruser/R-library")']
+def build_clean_R(): return ["rm(list=ls(all=TRUE))", "load(\""+R_clean_workspace()+"\")"]
+def build_close_R(): return ["rm(list=ls(all=TRUE))"]
+def build_grade_R(): return ['library(grade, lib.loc="/home/ruser/R-library")']
+
+clean_R = build_clean_R()
+close_R = build_close_R()
+grade_R = build_grade_R()
 ################################################################################
 start_time = time.time()
 requests   = 0
@@ -248,6 +253,10 @@ def read_cmdline():
 	####################################
 	# these options are to track if such and such shows up in the config file,
 	# if it is the first time for an item, we erase the array
+	clean_changed  = False
+	grade_changed  = False
+	close_changed  = False
+	tmpdir_changed = False
 	clean_f = False
 	grade_f = False
 	close_f = False
@@ -267,7 +276,9 @@ def read_cmdline():
 		p2 = fix_string(p2)
 
 		if p1.startswith("tmpdir"):
-			if p2 != "": tmpdir = p2
+			if p2 != "": 
+				tmpdir = p2
+				tmpdir_changed = True
 		elif p1.startswith("logfile"): 
 			if p2 != "": logfile = p2
 		elif p1.startswith("loglevel"): 
@@ -278,22 +289,29 @@ def read_cmdline():
 			if p2 != "": port = int(p2)
 		elif p1.startswith("clean"): 
 			if p2 != "":
+				clean_changed = True
 				if clean_f == False:
 					clean_R = []
 					clean_f = True
 				clean_R.append(p2)
 		elif p1.startswith("close"): 
 			if p2 != "":
+				close_changed = True
 				if close_f == False:
 					close_R = []
 					close_f = True
 				close_R.append(p2)
 		elif p1.startswith("grade"): 
 			if p2 != "":
+				grade_changed = True
 				if grade_f == False:
 					grade_R = []
 					grade_f = True
 				grade_R.append(p2)
+	if tmpdir_changed:
+		if not clean_changed: clean_R = build_clean_R()
+		if not close_changed: close_R = build_close_R()
+		if not grade_changed: grade_R = build_grade_R()
 #################################################################
 ## init R before we start the server
 from rpy import r, set_rpy_output
@@ -307,7 +325,7 @@ if __name__ == "__main__":
 		# something should be done here to make sure the clean workspace stays okay
 
 	# save a 'clean' R workspace that we can return to
-	r("save.image(file=\""+R_clean_workspace+"\")")
+	r("save.image(file=\""+R_clean_workspace()+"\")")
 
 	## start the rpc server
 	server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
