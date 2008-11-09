@@ -2,8 +2,10 @@
 ## it's important to keep this as /usr/bin/env python for cross platform
 ## compatibility
 
-import SimpleXMLRPCServer
 import base64, time, os, sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
+import SimpleXMLRPCServer, base64, time, os
 
 ################################################################################
 # all of these options are defaults and configurable in the config file
