@@ -27,6 +27,8 @@ clean_R = build_clean_R()
 close_R = build_close_R()
 grade_R = build_grade_R()
 ################################################################################
+## this is my attempt to capture the R output, rpy made this easier
+################################################################################
 start_time = time.time()
 requests   = 0
 
@@ -74,7 +76,7 @@ def get_r_output(R, rcode):
     rcode = rcode.replace("\r\n", "\n")
     output = ""
     if rcode.strip() != '':
-        output = str(R(rcode))
+        output = str(my_ri2py(R(rcode)))
     return output
 
 def load_encoded_workspace(R, workspace):
@@ -197,8 +199,10 @@ def processquestion(question):
 
 def status():
     R = get_clean_R()
-    rv = r("version")
+    rv   = my_ri2py(R("version"))
+    nmrv = my_ri2py(R("names(version)"))
     close_R_con(R)
+    rv = dict(zip(nmrv, rv))
     rv['requests'] = requests
     cur_time = time.time()
     uptime = int(cur_time - start_time)
@@ -315,9 +319,30 @@ def read_cmdline():
 		if not close_changed: close_R = build_close_R()
 		if not grade_changed: grade_R = build_grade_R()
 #################################################################
+def my_ri2py(obj):
+	res = robjects.default_ri2py(obj)
+	if isinstance(res, robjects.RVector):
+		if len(res) == 1:
+			res = res[0]
+		else:
+			def f(x):
+				if hasattr(x, '__getitem__'):
+					if type(x) is str:
+						return x
+					elif isinstance(x, robjects.RVector):
+						return my_ri2py(x)
+					else:
+						return x[0]
+				else:
+					return x
+			res = [f(x) for x in res]
+	return res
+
+
+#################################################################
 ## init R before we start the server
-from rpy import r, set_rpy_output
-set_rpy_output(junk_output)
+import rpy2.robjects as robjects
+r = robjects.r
 
 if __name__ == "__main__":
 	
@@ -328,6 +353,7 @@ if __name__ == "__main__":
 
 	# save a 'clean' R workspace that we can return to
 	r("save.image(file=\""+R_clean_workspace()+"\")")
+	print "Saved a clean workspace in %s" % R_clean_workspace()
 
 	## start the rpc server
 	server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
@@ -336,4 +362,5 @@ if __name__ == "__main__":
 	server.register_function(status)
 	server.register_function(grade)
 	server.register_introspection_functions()
+	print "Calling serve_forever with host: %s port: %d" % (host, port)
 	server.serve_forever()
