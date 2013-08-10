@@ -5,23 +5,43 @@
 import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
-import SimpleXMLRPCServer, base64, time, os
+
+import argparse
+import base64
+import os
+import SimpleXMLRPCServer
+import time
 
 ################################################################################
-# all of these options are defaults and configurable in the config file
-tmpdir   = "/home/ruser/rserver_tmp"
-logfile  = "/home/ruser/log/rserver.log"
-loglevel = 1
+# Define command line arguments.
+parser = argparse.ArgumentParser(description='Launch an RServer process.')
+parser.add_argument('--tmpdir', dest='tmpdir', type=str, nargs='?', 
+                    help='temporary directory.', default='/tmp')
+parser.add_argument('--logfile', dest='logfile', type=argparse.FileType('w'), 
+                    help='logfile.', default='rserver.log', nargs='?')
+parser.add_argument('--host', dest='host', type=str, nargs='?', 
+                    help='hostname to serve.', default='localhost')
+parser.add_argument('--port', dest='port' type=int, nargs='?', 
+                    help='port to serve from.', default=8080)
+parser.add_argument('--loglevel', dest='loglevel', type=int, nargs='?', 
+                    help='logging level.', default=1)
+
+################################################################################
+tmpdir = "/tmp"
 
 workspacetime = str(int(time.time())%1000)
-def R_clean_workspace(): return tmpdir + "/" + workspacetime + ".rda"
 
-host = "localhost"
-port = 8080
+def R_clean_workspace(): 
+    return tmpdir + "/" + workspacetime + ".rda"
 
-def build_clean_R(): return ["rm(list=ls(all=TRUE))", "load(\""+R_clean_workspace()+"\")"]
-def build_close_R(): return ["rm(list=ls(all=TRUE))"]
-def build_grade_R(): return ['library(grade, lib.loc="/home/ruser/R-library")']
+def build_clean_R(): 
+    return ["rm(list=ls(all=TRUE))", "load(\""+R_clean_workspace()+"\")"]
+
+def build_close_R(): 
+    return ["rm(list=ls(all=TRUE))"]
+
+def build_grade_R(): 
+    return ['library(grade, lib.loc="/home/ruser/R-library")']
 
 clean_R = build_clean_R()
 close_R = build_close_R()
@@ -34,31 +54,27 @@ requests   = 0
 
 ## logging faclities
 def log(msg, level=2):
-    if level > loglevel: return None
-    logf = open(logfile, "a")
-    logf.write(msg)
-    logf.close()
-    return None
+    if level > loglevel:
+        return
+    with open(logfile, "a") as logf:
+        logf.write(msg)
+
+def log_question_parameter_string(question, key):
+    if not question.has_key(key):
+        return ""
+    return "%s[%s]\n" % (key, str(question[key]).replace("\n", "\\n"))
 
 def log_question(question):
-    log_str = ""
-    if question.has_key('variables'):
-	    log_str = log_str + "variables[" + question['variables'].replace("\n", "\\n") + "]\n"
-    if question.has_key('questiontext'):
-	log_str = log_str + "questiontext[" + question['questiontext'].replace("\n", "\\n") + "]\n"
-    if question.has_key('remotegrade'):
-        log_str = log_str + "remotegrade="+str(question['remotegrade'])+"\n"
+    log_str = "".join(log_question_parameter_string(question, key)
+        for key in ['variables', 'questiontext', 'remotegrade'])
     if question.has_key('answers'):
-	answers = question['answers']
-	for ans in answers:
-	    if ans.has_key('ansid'):
-		log_str = log_str + "ansid[" + str(ans['ansid']) + "]\n"
-	    if ans.has_key('answer'):
-	        log_str = log_str + "answer[" + ans['answer'].replace("\n", "\\n") + "]\n"
-	    if ans.has_key('tolerance'):
-	        log_str = log_str + "tolerance[" + ans['tolerance'].replace("\n", "\\n") + "]\n"
-    if log_str != "":
-        log(log_str, 2)
+        answers = question['answers']
+        q_str = "".join(log_question_parameter_string(question, key)
+            for key in ['ansid', 'answer', 'tolerance'])
+        log_str = log_str + q_str 
+    if log_str != "":          
+       log(log_str, 2)
+
 #################################################################
 ## code to interface with R
 def junk_output(s):
@@ -174,10 +190,7 @@ def processquestion(question):
     ## process answers, but only if we aren't remote grading.
     ## if we are remote grading we send back a copy of the workspace so
     ## they can send it back to us when it comes time to grade
-    remote_grade = 0
-    if question.has_key('remotegrade'):
-        remote_grade = int(question['remotegrade'])
-    if remote_grade == 1:
+    if question.has_key('remotegrade') and int(question['remotegrade']):
         ret['workspace'] = get_R_workspace(R)
     elif question.has_key('answers'):
         answers_out = []
@@ -244,6 +257,9 @@ def grade(question):
 
 #################################################################
 def read_cmdline():
+    args = parser.parse_args()
+
+def read_cmdline_1():
 	global tmpdir, logfile, loglevel, host, port, clean_R, close_R, grade_R
 	config_file = ""
 	opts = sys.argv[1:]
@@ -321,7 +337,7 @@ def read_cmdline():
 #################################################################
 def my_ri2py(obj):
 	res = robjects.default_ri2py(obj)
-	if isinstance(res, robjects.RVector):
+	if isinstance(res, robjects.Vector):
 		if len(res) == 1:
 			res = res[0]
 		else:
@@ -345,22 +361,18 @@ import rpy2.robjects as robjects
 r = robjects.r
 
 if __name__ == "__main__":
-	
-	if len(sys.argv) > 1:
-		print "Reading commandline"
-		read_cmdline()
-		# something should be done here to make sure the clean workspace stays okay
+    read_cmdline()
 
 	# save a 'clean' R workspace that we can return to
-	r("save.image(file=\""+R_clean_workspace()+"\")")
-	print "Saved a clean workspace in %s" % R_clean_workspace()
+    r("save.image(file=\"" + R_clean_workspace() + "\")")
+    print "Saved a clean workspace in %s" % R_clean_workspace()
 
-	## start the rpc server
-	server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
-	# register functions that can be called via xml-rpc
-	server.register_function(processquestion)
-	server.register_function(status)
-	server.register_function(grade)
-	server.register_introspection_functions()
-	print "Calling serve_forever with host: %s port: %d" % (host, port)
-	server.serve_forever()
+    ## start the rpc server
+    server = SimpleXMLRPCServer.SimpleXMLRPCServer((host, port))
+    # register functions that can be called via xml-rpc
+    server.register_function(processquestion)
+    server.register_function(status)
+    server.register_function(grade)
+    server.register_introspection_functions()
+    print "Calling serve_forever with host: %s port: %d" % (host, port)
+    server.serve_forever()
