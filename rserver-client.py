@@ -9,10 +9,12 @@ import xml.dom.minidom
 import sys
 
 parser = argparse.ArgumentParser(description='Send xml requests to an RServer.')
-parser.add_argument('--xmlfile', dest='xmlfile', type=str, nargs=1, 
-    help='process a xml file of questions.')
 parser.add_argument('--url', dest='serverurl', type=str, 
     help='server url to send requests to.', nargs=1, required=True)
+parser.add_argument('--xmlfile', dest='xmlfile', type=str, nargs=1, 
+    help='process a xml file of questions.')
+parser.add_argument('--status', dest='status', action='store_true',
+	help='get the status of the RServer.')
 parser.add_argument('--variables', dest='variables', type=str, nargs=1, 
     help='variables string to send to server.')
 parser.add_argument('--questiontext', dest='questiontext', type=str, nargs=1, 
@@ -33,11 +35,25 @@ def send_question(url, question):
 		resp = v
 	return resp
 
+def send_status(url):
+	server = ServerProxy(url)
+	try:
+		resp = server.status()
+	except Error, v:
+		resp = v
+	return resp
+
 def process_questions(server, questions):
 	for question in questions:
 		resp = send_question(server, question)
 		xml = convert_question_toxml(resp)
 		print xml.toprettyxml("  ")
+
+def get_server_status(url):
+	resp = send_status(url)
+	for k, v in resp.items():
+		print "%s: %s" % (k, v)
+
 #######################################################################
 def convert_question_toxml(question):
 	doc = xml.dom.minidom.Document()
@@ -152,6 +168,10 @@ def process_qnode(qnode):
 #######################################################################
 if __name__ == "__main__":
 	command_options = process_command_line(sys.argv[1:])
+	if command_options['status']:
+		get_server_status(command_options['serverurl'][0])
+		sys.exit(0)
+	del command_options['status']
 	if 'xmlfile' in command_options:
 		questionxml_list = read_xml_file(command_options['xmlfile'][0])
 	else:

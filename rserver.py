@@ -326,7 +326,7 @@ def my_ri2py_inner(x):
         return x
     if type(x) is str:
         return x
-    elif isinstance(x, robjects.RVector):
+    elif isinstance(x, robjects.Vector):
         return my_ri2py(x)
     else:
         return x[0]
