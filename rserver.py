@@ -52,7 +52,7 @@ def build_close_r():
     return ["rm(list=ls(all=TRUE))"]
 
 def build_grade_r(): 
-    return ['library(grade, lib.loc="/home/ruser/R-library")']
+    return ['library(grade)']
 
 config_values['clean_r'] = build_clean_r()
 config_values['close_r'] = build_close_r()
@@ -253,11 +253,11 @@ def grade(question):
         for answer in question['answers']:
             if answer.has_key('answer'):
                 log("checking answer: " + answer['answer'] + "\n")
-                ans_result = R(str(answer['answer']))
+                ans_result = R(str(answer['answer']))[0]
                 log("answer result: " + str(ans_result) + "\n")
                 if ans_result:
                     if answer.has_key('ansid'):
-                        log("answer correct, ansid: " + \
+                        log("answer matches, ansid: " + \
                             str(answer['ansid']) + "\n")
                         ret.append(int(answer['ansid']))
     if len(ret) == 0:
