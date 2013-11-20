@@ -26,7 +26,7 @@ parser.add_argument('--host', dest='host', type=str, nargs=1,
 parser.add_argument('--port', dest='port', type=int, nargs=1, 
     help='port to serve from.')
 parser.add_argument('--loglevel', dest='loglevel', type=int, nargs=1, 
-    help='logging level.')
+    help='logging level.  Lower means more logging.')
 parser.add_argument('--config', dest='config', type=str,
     help='configuration file.', nargs=1)
 parser.add_argument('--clean_r', dest='clean_r', type=str,

@@ -1,0 +1,62 @@
+RServer
+=======
+
+A python based RServer for processing questions from Moodle.
+
+Overview
+========
+This R server listens for rpc requests on a configured port.  When requests are
+received, the R server processes some components with R, blends results with the
+original request, and sends back a response containing the blended request.  It
+is expected that these requests are coming from a Moodle instance using Remote
+Processed Questions (https://github.com/ltjohnson/remoteprocessedquestion), but
+that need not be the case.  For example, this repository contains a script that
+can communicate with an R server.
+
+File Overview
+=============
+rserver           -- shell script, used for start/stop/check 
+                     and restart control of the rserver. 
+rserver-client.py -- python script, may be used to test an R 
+                     server.
+rserver.config    -- sample configuration file.
+rserver.py        -- python script, the actual R server.
+
+Dependencies
+============
+1.  python (2.7)
+2.  R (http://cran.r-project.org/)
+3.  rpy2 (http://rpy.sourceforge.net/rpy2.html)
+
+Quick Run
+=========
+After matching the depdencies, you should be able to run rserver.py from any
+directory.  For a full list of options, run: `rserver.py --help`.  The command
+  rserver.py --host=localhost --port=8080 --tmpdir=/tmp 
+    --logfile=/tmp/rserver.log
+will start a rserver that serves on localhost at port 8080 
+(http://localhost:8080).  Processed requests will be logged to /tmp/rserver.log
+and any temporary files will be placed in /tmp.
+
+Installation
+============
+It is assumed that rserver will be run on a Unix-like system.
+
+1. Verify all dependencies.
+2. Make rserver.py executable, it's location shall be referred to as 
+   $BIN/rserver.py.
+3. Place the config file in any reasonable directory, e.g. 
+   /etc/rserver/rserver.config .  To see a list of configurable options and 
+   short explanations, run: $BIN/rserver.py --help .
+4. Place the rserver script in a directory appropriate for the init service in
+   use in your system.
+5. Edit the rserver_home, pidFile, rserver_bin, and config file path a the 
+   start of rserver.
+6. Configure the init sr RServer.
+
+
+
+
+
+
+
