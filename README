@@ -32,7 +32,7 @@ Quick Run
 =========
 After matching the depdencies, you should be able to run rserver.py from any
 directory.  For a full list of options, run: `rserver.py --help`.  The command
-  rserver.py --host=localhost --port=8080 --tmpdir=/tmp 
+  rserver.py --host=localhost --port=8080 --tmpdir=/tmp \
     --logfile=/tmp/rserver.log
 will start a rserver that serves on localhost at port 8080 
 (http://localhost:8080).  Processed requests will be logged to /tmp/rserver.log
