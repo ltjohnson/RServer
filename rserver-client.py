@@ -61,8 +61,9 @@ def convert_question_toxml(question):
 	qxml.setAttribute("type", "remoteprocessed")
 	for key in ['name','variables', 'questiontext', 'numanswers']:
 		if question.has_key(key):
+                        question_unicode = unicode(question[key])
 			ml = doc.createElement(key)
-			ml.appendChild(doc.createTextNode(str(question[key])))
+			ml.appendChild(doc.createTextNode(question_unicode))
 			qxml.appendChild(ml)
 	if question.has_key('answers'):
 		answers = doc.createElement("answers")
@@ -81,10 +82,11 @@ def process_command_line(args):
 	parsed_args = parser.parse_args(args)
 	args_dict = vars(parsed_args)
 	args_dict = dict((k, v) for k, v in args_dict.items() if v is not None)
-	args_keys = set(args_dict.keys()).difference(set("serverurl"))
-	if 'xmlfile' in args_dict and len(args_dict) > 1:
-		print "You may not specifiy xmlfile with any other options"
-		sys.exit(0)
+	args_keys = set(args_dict.keys()).difference(set('serverurl'))
+	if 'xmlfile' in args_keys:
+                if len(set(['xmlfile', 'status']).difference(args_keys)) > 0:
+	                print 'You may only specify --xmlfile with --url'
+		        sys.exit(0)
 	return args_dict
 
 
@@ -137,34 +139,34 @@ def read_xml_file(xml_file):
 	
 #######################################################################
 ## this xml indexing seems a little obtuse, this probably means I'm doing it wrong
+def get_node_value(node):
+    while len(node.childNodes) > 1:
+        node = node.childNodes[1]
+    return node.childNodes[0].nodeValue if node.hasChildNodes() else ''
+
 def process_qnode(qnode):
-	question = {}
-	remote_node = None
-	for node in qnode.childNodes:
-		if node.localName == "name":
-			question['name'] = node.childNodes[1].childNodes[0].nodeValue
-		elif node.localName == "questiontext":
-			question['questiontext'] = node.childNodes[1].childNodes[0].nodeValue
-		elif node.localName == "remoteprocessed":
-			remote_node = node
-	ansnd = None
-	if remote_node != None:
-		for node in remote_node.childNodes:
-			if node.localName == 'variables':
-				question['variables'] = node.childNodes[0].nodeValue
-			elif node.localName == 'answers':
-				ansnd = node
-		
-	answers = []
-	for nd in ansnd.childNodes:
-		if nd.localName == 'answer':
-			ans = dict((nd1.localeName, nd1.childNodes[0].nodeValue) for
-				nd1 in nd.childNodes if nd1.localName is not None)
-			answers.append(ans)
-	question['answers'] = answers
-	return question
-				
-	
+    question = {}
+    remote_node = None
+    question_nodes = set(['name', 'questiontext', 'remotegrade', 'imagecode', 
+                          'variables'])
+    for node in qnode.childNodes:
+        if node.localName in question_nodes:
+            question[node.localName] = get_node_value(node)
+    ansnd = None
+    if remote_node != None:
+        for node in remote_node.childNodes:
+            if node.localName == 'answers':
+                ansnd = node
+    answers = []
+    if ansnd is not None:
+        for nd in ansnd.childNodes:
+            if nd.localName == 'answer':
+                ans = dict((nd1.localName, nd1.childNodes[0].nodeValue) for
+		        nd1 in nd.childNodes if nd1.localName is not None)
+                answers.append(ans)
+    question['answers'] = answers
+    return question
+
 #######################################################################
 if __name__ == "__main__":
 	command_options = process_command_line(sys.argv[1:])

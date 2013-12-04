@@ -69,6 +69,7 @@ def log(msg, level=2):
         return
     with open(config_values['logfile'], "a") as logf:
         logf.write(msg)
+        logf.flush()
 
 def log_question_parameter_string(question, key):
     if not question.has_key(key):
