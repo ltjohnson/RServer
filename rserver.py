@@ -274,20 +274,21 @@ def load_configfile(filename):
         config.read(filename)
     except ConfigParser.MissingSectionHeaderError:
         # config file doesn't have a section header, so we'll make one up.
-        config_bytes = "[default]\n" + open(filename).read()
+        config_bytes = "[rserver]\n" + open(filename).read()
         config.readfp(io.BytesIO(config_bytes))
     else:
-        # The config file has other sections, we only want it to have "default".
-        # Take all of the options that are not in a "default" section and
+        # The config file has other sections, we only want it to have "rserver".
+        # Take all of the options that are not in a "rserver" section and
         # move them into default.
         sections = config.sections()
-        if "default" not in sections:
-            config.add_section("default")
-        sections.remove("default")
+        if "rserver" in sections:
+            sections.remove("rserver")
+        else:
+            config.add_section("rserver")
         for section in sections:
             for key, value in config.items(section):
                 config.set("default", key, value)
-    config_dict = dict(config.items("default"))
+    config_dict = dict(config.items("rserver"))
     # The rest of the code expects these values to be lists.
     for key in ['grade_r', 'clean_r', 'close_r']:
         if key in config_dict:
@@ -357,7 +358,7 @@ if __name__ == "__main__":
     print "logfile:", config_values['logfile']
 
     ## start the rpc server
-    address = (config_values['host'], config_values['port'])
+    address = (config_values['host'], int(config_values['port']))
     server = SimpleXMLRPCServer.SimpleXMLRPCServer(address)
     # register functions that can be called via xml-rpc
     server.register_function(processquestion)
