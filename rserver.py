@@ -308,7 +308,7 @@ def read_cmdline(args):
         if k not in ['clean_r', 'grade_r', 'closer_r']:
             parsed_args[k] = parsed_args[k][0]
     if 'config' in parsed_args and parsed_args['config'] is not None:
-        configured_options.update(load_configfile(parsed_args['config'][0]))
+        configured_options.update(load_configfile(parsed_args['config']))
         del parsed_args['config']
     configured_options.update(parsed_args)
     config_values.update(configured_options)
